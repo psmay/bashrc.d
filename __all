@@ -1,0 +1,113 @@
+
+# Note that the script ordering produced here is not stable; the output may
+# be any sequence that satisfies the dependencies specified by the scripts,
+# with no actual regard for lexicographic order nor for the order in which
+# dependencies are specified. This has the potential to introduce subtle
+# bugs in your startup sequence.
+#
+# If one of the scripts has even the slightest need at all for another script
+# to be run first, specify it as a dependency.
+
+# Open a script file and read its #require directives. Also include the name
+# of the script itself at the end.
+_HfgkRcdRunner__requirements()
+{
+	local require_line_prefix_pattern='^#require\s'
+	local name="$1"
+
+	sed '
+		/'"$require_line_prefix_pattern"'/!d
+		s/'"$require_line_prefix_pattern"'//
+		s/\s\+/\n/g
+		' <"$name"
+	echo "$name"
+}
+
+# Using the script names given as parameters, fetch all of their
+# requirements (pseudo-)recursively and determine an order for them to
+# execute in which scripts will run only after their requirements have run.
+_HfgkRcdRunner__schedule()
+{
+	declare -A reqs
+
+	# Load the initial keys.
+	# A blank value means the requirements are not listed yet.
+	while [ $# -gt 0 ]; do
+		reqs[$1]=""
+		shift
+	done
+
+	# Repeat processing until there are no more blank requirements.
+	# Requirements newly found in this pass are not queried for their own
+	# requirements until the next pass.
+	local state='more'
+	while [ $state == 'more' ]; do
+		state='done'
+
+		for k in "${!reqs[@]}"; do
+			if [ "${reqs["$k"]}" == "" ] ; then
+				# We rely on the result of this being non-blank. It will
+				# always contain at least the file itself as its own
+				# dependency.
+				local req=`_HfgkRcdRunner__requirements "$k"`
+				for name in $req; do
+					# Key existence test.
+					# See "Shell Parameter Expansion" in bash manual.
+					if [ ! ${reqs[$name]+exists_test_dummy} ]; then
+						state='more'
+						reqs["$name"]=""
+					fi
+				done
+				reqs["$k"]="$req"
+			fi
+		done
+	done
+
+	(
+		for k in "${!reqs[@]}"; do
+			echo "${reqs[$k]}" | awk -v name="$k" '{ print name " " $0 }'
+		done
+	) | tsort | tac
+}
+
+# Given filenames as parameters, outputs a list of files that the runner
+# will run by default. Filenames containing periods or leading with at least
+# two underscores are not to be run by default. (They can, however, be
+# loaded as requirements.)
+_HfgkRcdRunner__roots()
+{
+	for i in "$@"; do
+		if [ -f "$i" -a -r "$i" ]; then
+			case $i in
+				__* | *.* | .* )
+					# Skip
+					;;
+				* )
+					echo "$i"
+					;;
+			esac
+		fi
+	done
+	
+}
+
+# Given an rc directory, locates the scripts to be run and their
+# dependencies, schedules them, and then sources each one in order. (The
+# current working directory is used when sourcing.)
+HfgkRcdRunner__run()
+{
+	local dir="$1"
+	local roots=`(cd "$dir"; _HfgkRcdRunner__roots *)`
+	local sched=`(cd "$dir"; _HfgkRcdRunner__schedule $roots)`
+	for i in $sched; do
+		. "$dir/$i"
+	done
+}
+
+if [ "-$HFGK_RCD_RUNNER_DIR-" == "--" ]; then
+	HFGK_RCD_RUNNER_DIR=~/.bashrc.d
+fi
+
+HfgkRcdRunner__run "$HFGK_RCD_RUNNER_DIR"
+
+
