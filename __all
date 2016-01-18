@@ -8,18 +8,38 @@
 # If one of the scripts has even the slightest need at all for another script
 # to be run first, specify it as a dependency.
 
+# This script is in bash and friends, but comments are included to aid the
+# understanding of more conventional languages. Please keep these up to
+# date. If a comment contains a regex prefixed with `qr`, it is being given
+# in Perl-/JavaScript-like form rather than POSIX form.
+
 # Open a script file and read its #require directives. Also include the name
 # of the script itself at the end.
+# Output: A list of names, one per line, with the given name as the final
+# element. Because the list always contains the script's own name, the result
+# shall never be blank.
 _HgkUsRcdRunner__requirements()
 {
-	local require_line_prefix_pattern='^#require\s'
-	local name="$1"
+	# qr/^#require\s+/; line starts with '#require' followed by whitespace
+	local prefix_pattern='^#require\s\+'
 
+	# Name of the script currently being queried
+	local name="$1"
+	
+    # Get the contents of any #require lines in the named script.
+	# This sed command says
+	# - Omit all lines that do not match the prefix pattern.
+    # - From remaining lines, omit the part of the line matching the prefix
+    #   pattern.
+	# - Convert any runs of whitespace into newlines, turning
+    #   space-separated lists into newline-separated lists.
 	sed '
-		/'"$require_line_prefix_pattern"'/!d
-		s/'"$require_line_prefix_pattern"'//
+		/'"$prefix_pattern"'/!d
+		s/'"$prefix_pattern"'//
 		s/\s\+/\n/g
-		' <"$name"
+		' < "$name"
+
+    # Report the script's own name as its last dependency.
 	echo "$name"
 }
 
@@ -28,46 +48,90 @@ _HgkUsRcdRunner__requirements()
 # execute in which scripts will run only after their requirements have run.
 _HgkUsRcdRunner__schedule()
 {
+    # Associative array that maps each script to a newline-separated list
+    # of dependencies.
 	declare -A reqs
 
 	# Load the initial keys.
 	# A blank value means the requirements are not listed yet.
+    # (This loop iterates the command arguments, where, for the queue of
+    # arguments, $# is its length, $1 reads its head, and shift discards the
+    # head.)
 	while [ $# -gt 0 ]; do
 		reqs[$1]=""
 		shift
 	done
 
-	# Repeat processing until there are no more blank requirements.
-	# Requirements newly found in this pass are not queried for their own
-	# requirements until the next pass.
+    # Traverses the list of keys. For each key where the value is still "",
+    # the script with the same name is queried for its list of requirements,
+    # and the value for the key is replaced with the requirements list.
+    # Also, each element of that requirements list that does not already
+    # have a key in the associative array is added with its value set to "".
+    # Repeat the traversal (catching any new keys in the process) until
+    # there are no more blank requirements lists.
+    #
+    # Requirements newly found in each pass are not queried for their own
+    # requirements until the next pass.
 	local state='more'
 	while [ $state == 'more' ]; do
 		state='done'
 
+        # For each k in reqs's key list
+        # (The key sequence is pre-evaluated, so mutating reqs in the loop
+        # is OK)
 		for k in "${!reqs[@]}"; do
+            # If the requirement list for $k is still blank
 			if [ "${reqs["$k"]}" == "" ] ; then
+                # Retrieve the requirements for the script named $k into req.
+                #
 				# We rely on the result of this being non-blank. It will
 				# always contain at least the file itself as its own
 				# dependency.
 				local req=`_HgkUsRcdRunner__requirements "$k"`
+
+                # For each dependency, if it is not a key in reqs yet, add
+                # it with value set to "".
 				for name in $req; do
-					# Key existence test.
-					# See "Shell Parameter Expansion" in bash manual.
+					# ${foo[$bar]+some_dummy_word} tests for the existence of
+                    # $bar in foo. See "Shell Parameter Expansion" (the
+                    # section for `${parameter:+word}`) in bash manual.
+
+                    # If $name is not in reqs
 					if [ ! ${reqs[$name]+exists_test_dummy} ]; then
-						state='more'
+                        # Add a new script with "" as its requirements list
 						reqs["$name"]=""
+                        # Ensure that there is at least one more pass to
+                        # fill the requirements list
+						state='more'
 					fi
 				done
+
+                # Finally, set the requirements list for $k.
 				reqs["$k"]="$req"
 			fi
 		done
 	done
 
+    # Sort the dependencies in load order.
+    # - Create a list of ordered dependency pairs.
+    #   - For each dependency d of a script s, print a line "$d $s" which
+    #     describes this dependency. (This includes where s = d.)
+    # - Run tsort on the result.
+    #   - tsort is an important, semi-obscure, POSIX-required program that
+    #     accepts a whitespace-separated list of pairs, for which the left
+    #     side of the pair is known to appear not later than the right. The
+    #     result is a sequence of all the items mentioned, where the given
+    #     partial orderings are preserved.
 	(
+        # For each k in reqs's key list
 		for k in "${!reqs[@]}"; do
+            # For each of k's dependencies, print a line containing $k, then
+            # a space, then the dependency. (Note that reqs[$k] is a
+            # multi-line string containing one dependency per line. The awk
+            # one-liner just prepends "$k " to each line.)
 			echo "${reqs[$k]}" | awk -v name="$k" '{ print name " " $0 }'
 		done
-	) | tsort | tac
+	) | tsort
 }
 
 # Given filenames as parameters, outputs a list of files that the runner
@@ -79,9 +143,14 @@ _HgkUsRcdRunner__roots()
 	for i in "$@"; do
 		if [ -f "$i" -a -r "$i" ]; then
 			case $i in
+                # Files not run by default
+                # If $i matches __* or *.* or .*, skip it
 				__* | *.* | .* )
 					# Skip
 					;;
+                
+                # Files run by default
+                # If $i doesn't match the non-default patterns 
 				* )
 					echo "$i"
 					;;
