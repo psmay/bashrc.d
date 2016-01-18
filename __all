@@ -10,7 +10,7 @@
 
 # Open a script file and read its #require directives. Also include the name
 # of the script itself at the end.
-_HfgkRcdRunner__requirements()
+_HgkUsRcdRunner__requirements()
 {
 	local require_line_prefix_pattern='^#require\s'
 	local name="$1"
@@ -26,7 +26,7 @@ _HfgkRcdRunner__requirements()
 # Using the script names given as parameters, fetch all of their
 # requirements (pseudo-)recursively and determine an order for them to
 # execute in which scripts will run only after their requirements have run.
-_HfgkRcdRunner__schedule()
+_HgkUsRcdRunner__schedule()
 {
 	declare -A reqs
 
@@ -49,7 +49,7 @@ _HfgkRcdRunner__schedule()
 				# We rely on the result of this being non-blank. It will
 				# always contain at least the file itself as its own
 				# dependency.
-				local req=`_HfgkRcdRunner__requirements "$k"`
+				local req=`_HgkUsRcdRunner__requirements "$k"`
 				for name in $req; do
 					# Key existence test.
 					# See "Shell Parameter Expansion" in bash manual.
@@ -74,7 +74,7 @@ _HfgkRcdRunner__schedule()
 # will run by default. Filenames containing periods or leading with at least
 # two underscores are not to be run by default. (They can, however, be
 # loaded as requirements.)
-_HfgkRcdRunner__roots()
+_HgkUsRcdRunner__roots()
 {
 	for i in "$@"; do
 		if [ -f "$i" -a -r "$i" ]; then
@@ -94,11 +94,11 @@ _HfgkRcdRunner__roots()
 # Given an rc directory, locates the scripts to be run and their
 # dependencies, schedules them, and then sources each one in order. (The
 # current working directory is used when sourcing.)
-HfgkRcdRunner__run()
+HgkUsRcdRunner__run()
 {
 	local dir="$1"
-	local roots=`(cd "$dir"; _HfgkRcdRunner__roots *)`
-	local sched=`(cd "$dir"; _HfgkRcdRunner__schedule $roots)`
+	local roots=`(cd "$dir"; _HgkUsRcdRunner__roots *)`
+	local sched=`(cd "$dir"; _HgkUsRcdRunner__schedule $roots)`
 	for i in $sched; do
 		. "$dir/$i"
 	done
@@ -108,6 +108,6 @@ if [ "-$HFGK_RCD_RUNNER_DIR-" == "--" ]; then
 	HFGK_RCD_RUNNER_DIR=~/.bashrc.d
 fi
 
-HfgkRcdRunner__run "$HFGK_RCD_RUNNER_DIR"
+HgkUsRcdRunner__run "$HFGK_RCD_RUNNER_DIR"
 
 
