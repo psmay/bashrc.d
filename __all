@@ -131,7 +131,7 @@ _HgkUsRcdRunner__schedule()
             # one-liner just prepends "$k " to each line.)
 			echo "${reqs[$k]}" | awk -v name="$k" '{ print name " " $0 }'
 		done
-	) | tsort
+	) | tsort | tac
 }
 
 # Given filenames as parameters, outputs a list of files that the runner
