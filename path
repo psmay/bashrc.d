@@ -1,2 +1,11 @@
-export PATH="$HOME/local/bin":"$HOME/bin":"$PATH"
-export MANPATH="$HOME/local/man":"$HOME/man":"$MANPATH"
+
+# Prepend ~/opt/(package)/... to path
+PATH="`find $HOME/opt -maxdepth 2 -mindepth 2 -type d -name bin -exec echo -n {}: \;`$PATH"
+MANPATH="`find $HOME/opt -maxdepth 2 -mindepth 2 -type d -name man -exec echo -n {}: \;`$MANPATH"
+
+# Prepend ~/local/... and ~/... to path
+PATH="$HOME/local/bin":"$HOME/bin":"$PATH"
+MANPATH="$HOME/local/man":"$HOME/man":"$MANPATH"
+
+export PATH
+export MANPATH
