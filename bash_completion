@@ -1,0 +1,8 @@
+
+# Turn on completions in bash.
+
+if is_interactive; then
+	if [ -f /etc/bash_completion ]; then
+		. /etc/bash_completion
+	fi
+fi

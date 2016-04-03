@@ -1,0 +1,6 @@
+
+# After each command, update LINES and COLUMNS so line wrapping stays sane.
+
+if is_interactive; then
+	shopt -s checkwinsize
+fi

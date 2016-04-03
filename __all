@@ -173,10 +173,18 @@ HgkUsRcdRunner__run()
 	done
 }
 
-if [ "-$HFGK_RCD_RUNNER_DIR-" == "--" ]; then
-	HFGK_RCD_RUNNER_DIR=~/.bashrc.d
+# Since many scripts need to determine whether the current session is
+# interactive, we provide the function `is_interactive` so that tests like
+# `if is_interactive; then ... fi` or `is_interactive && ...` readily work. 
+is_interactive()
+{
+	[[ "$-" == *i* ]]
+}
+
+if [ "-$HGK_RCD_RUNNER_DIR-" == "--" ]; then
+	HGK_RCD_RUNNER_DIR=~/.bashrc.d
 fi
 
-HgkUsRcdRunner__run "$HFGK_RCD_RUNNER_DIR"
+HgkUsRcdRunner__run "$HGK_RCD_RUNNER_DIR"
 
 

@@ -1,0 +1,4 @@
+
+# Limit permissions on new files to the creating user.
+umask 077
+

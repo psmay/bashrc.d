@@ -1,0 +1,12 @@
+
+# Set preferences for bash command history.
+
+if is_interactive; then
+	# ignoredups causes duplicate commands to be omitted from history
+	# ignorespace causes commands starting with space to be omitted from history
+	# ignoreboth implies ignoredups and ignorespace
+	export HISTCONTROL=ignoreboth
+
+	# append to history rather than overwriting
+	shopt -s histappend
+fi

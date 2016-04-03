@@ -1,0 +1,10 @@
+
+# Turn listing colors on for ls.
+
+if is_interactive; then
+	if [ -x /usr/bin/dircolors ]; then
+		eval "`dircolors -b`"
+		alias ls='ls --color=auto'
+	fi
+fi
+
