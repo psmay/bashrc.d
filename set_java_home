@@ -1,0 +1,23 @@
+
+# This script assumes that the correct JAVA_HOME is the third directory up
+# from the directory containing the actual java alternative currently in use
+# after any symlinks have been resolved.
+
+current_java="$(which java)"
+
+if [ "$current_java" != "" ]; then
+	up0="$(readlink -f "$current_java")"
+	up1="$(dirname "$up0")"
+	up2="$(dirname "$up1")"
+	up3="$(dirname "$up2")"
+
+	# Check for jre/lib/rt.jar
+	if [ -e "$up3/jre/lib/rt.jar" ]; then
+		export JAVA_HOME="$up3"
+		#echo "JAVA_HOME is now set to '$JAVA_HOME'"
+		true
+	else
+		#echo "JAVA_HOME has not been set up; the determined location of '$up3' is missing expected data"
+		false
+	fi
+fi
